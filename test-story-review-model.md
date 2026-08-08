@@ -5,6 +5,15 @@ Status: working design note
 Context: developed while studying TorchTitan and TorchTitan-NPU tests, but intended to describe a
 general method for designing and reviewing change-oriented test evidence.
 
+Source working notes:
+
+- [TorchTitan-NPU testcase review policy draft](working-notes/testcase-review-policy-draft.md)
+- [TorchTitan-NPU test-story simulation progress report](working-notes/test-story-simulations-progress.md)
+
+These snapshots preserve the discussion, PR-439 analysis, representative commit simulations, and
+intermediate models from which this distilled note was derived. Their status statements refer to
+policy/skill integration in the original TorchTitan-NPU workspace.
+
 ## The problem
 
 A test suite can have high line coverage, many parameterized cases, and sensible directory
