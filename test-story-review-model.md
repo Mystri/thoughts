@@ -256,6 +256,116 @@ An unmatched bottom-up proposition is not automatically useless. It may reveal a
 behavior change omitted from the PR description. If so, revise the effective intention and add a
 preservation or boundary chapter.
 
+## Use upstream as evidence and precedent
+
+The model applies to upstream testcases without modification. Upstream tests enter the bottom-up
+tunnel like any other executable evidence: extract their literal propositions, identify their
+evidence boundaries, and decide how they relate to the downstream change.
+
+Do not treat "upstream has a test" as a conclusion. An upstream testcase may play several
+different roles:
+
+| Upstream role | Meaning for downstream review |
+| --- | --- |
+| Inherited evidence | The exact upstream test runs against the changed downstream runtime and its proposition still applies |
+| Preservation baseline | Expected downstream behavior should remain equal to the upstream implementation |
+| Reusable testcase | The upstream test can be extended or parameterized to cover the downstream case |
+| Design precedent | Its fixture, oracle, or granularity is useful, but it is not executable evidence for this change |
+| Scope contrast | It covers CUDA, CPU, or another topology and makes the missing NPU-specific layer explicit |
+| Negative precedent | Literal review exposes that the upstream test itself is weaker than its name or assumed role |
+
+Always record the exact upstream revision. A current upstream testcase is not necessarily the test
+present in the version pinned by the downstream repository.
+
+### Upstream review reminder
+
+The eventual review skill can include this compact output section without changing the core mental
+model:
+
+```text
+Upstream reference
+  revision:
+  testcase or artifact:
+  literal proposition:
+  role: inherited / baseline / reusable / precedent / contrast / negative precedent
+  downstream delta:
+  executed by downstream CI: yes / no / unknown
+  remaining proof gap:
+```
+
+Search upstream before proposing new evidence, especially for shared model components,
+parallelism, checkpointing, compilation, and configuration behavior. Prefer extending or reusing a
+stable upstream test when its fixture and oracle represent the same contract.
+
+Do not copy upstream tests mechanically. A downstream patch can change the activation path,
+backend, representation, distributed topology, or numerical contract. In that case the upstream
+test may be a template or baseline rather than sufficient evidence.
+
+### Two upstream examples
+
+At upstream TorchTitan revision `96276d86577cf3e3bd29de72586e76af62010a55`,
+`tests/unit_tests/test_activation_checkpoint.py::TestApplyAC::test_correctness` is a useful compact
+precedent. One testcase constructs several activation-checkpoint variants and compares forward
+outputs, input gradients, and parameter gradients with an uncheckpointed reference. Those
+observations jointly establish one proposition: the selected recomputation policies preserve
+forward and backward semantics. The model should not generate a separate testcase for every
+output, gradient, parameter, or policy row.
+
+The same file separates recomputation selection, FLOPs, CUDA memory, and correctness. These are
+separate stories or chapters because they have different terminal claims, oracles, and required
+execution layers.
+
+By contrast, at the same revision,
+`tests/unit_tests/test_compile_moe.py::TestApplyCompile::test_grouped_mm_compiles_and_runs` applies
+compile to one model, constructs a separate `GroupedExperts` module, executes that module, and
+asserts only its output shape. Its literal proposition is a successful grouped-expert forward with
+the expected shape in that setup. The assertions do not by themselves establish that the executed
+module was compiled or that compiled numerics match eager. Upstream status does not exempt a test
+from literal-proposition and handoff review.
+
+## Evidence minimality and stopping rule
+
+The model should generate the smallest connected evidence set that closes the required story
+bundle, not one testcase per proposition, changed function, branch, or runtime seam.
+
+One testcase may be preferable when several observations are causally inseparable parts of one
+terminal proposition. For example, forward output, input gradients, and parameter gradients can
+belong in one semantic-equivalence test. Split them only when they require different scenarios,
+oracles, layers, or produce meaningfully independent failures.
+
+Add a narrow seam test only when it contributes at least one unique value:
+
+- rejects a fault not rejected by broader evidence;
+- protects a changed or historically fragile handoff;
+- covers a distinct boundary, default, invalid, or compatibility partition;
+- runs at a required evidence layer absent elsewhere;
+- provides substantial diagnostic localization at low maintenance cost;
+- preserves a stable public or upstream contract directly.
+
+Before proposing a testcase, ask:
+
+> If this testcase is removed, which named required claim, plausible fault, scenario partition,
+> execution layer, or handoff becomes unprotected?
+
+If there is no concrete answer, do not add the testcase.
+
+Also check for dominated evidence. Testcase A dominates testcase B when A establishes B's relevant
+proposition over at least the same domain and layer, while B adds no unique fault sensitivity,
+boundary, upstream contract, speed, or diagnostic value. Retain B only when that additional value
+is explicit.
+
+Stop generating tests when:
+
+1. every mandatory terminal claim has adequate evidence;
+2. changed or risky handoffs are continuous;
+3. required default, preservation, and boundary partitions are covered;
+4. required execution layers are represented;
+5. every retained test adds a named, unique proof or diagnostic contribution;
+6. removing any proposed additional test would create no identified proof gap.
+
+This is an evidence-minimization rule, not a weakening of the proof model. The target is sufficient
+discrimination with low suite cost, not maximal testcase count.
+
 ## Individual testcase information inside a narrative
 
 Narrative organization must not erase testcase-level auditability. Preserve a compact evidence
